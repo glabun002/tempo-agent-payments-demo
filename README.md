@@ -4,6 +4,12 @@ Autonomous AI agents paying each other for services with stablecoin micropayment
 
 **Two agents. Zero API keys. Real stablecoin payments. Sub-second settlement.**
 
+## Demo Video
+
+https://github.com/glabun002/tempo-agent-payments-demo/blob/main/demo.mp4
+
+A newsletter bot ("DailyBrief") pays an AI writing service ("ContentAI") for headline analysis at $0.01 each and a streamed article at $0.001/word — all with real stablecoin payments on Tempo testnet.
+
 ## What This Demo Shows
 
 - **Service Agent** — an Express server offering paid AI endpoints (sentiment analysis + streamed text generation)
