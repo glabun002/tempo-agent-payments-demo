@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tempo — Agent Payment Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black:#000; --g1100:#0D0D0D; --g1000:#1A1A1A; --g900:#262626; --g800:#333;
+    --g700:#4D4D4D; --g600:#808080; --g500:#999; --g400:#B2B2B2; --g300:#CCC;
+    --g200:#D9D9D9; --g100:#F2F2F2; --white:#FFF;
+    --green:#22c55e; --amber:#f59e0b; --red:#ef4444;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--black);color:var(--white);font-family:'IBM Plex Sans',sans-serif;font-size:13px;line-height:1.6;min-height:100vh;overflow-x:hidden;}
+  code,.mono{font-family:'IBM Plex Mono',monospace;}
+
+  /* INTRO OVERLAY */
+  #intro{position:fixed;inset:0;background:var(--black);z-index:100;display:flex;align-items:center;justify-content:center;transition:opacity .6s ease;}
+  #intro.hidden{opacity:0;pointer-events:none;}
+  .intro-content{max-width:560px;text-align:center;padding:40px;}
+  .intro-logo{font-family:'IBM Plex Mono',monospace;font-size:32px;font-weight:700;letter-spacing:-0.04em;margin-bottom:32px;}
+  .intro-logo span{color:var(--g600);}
+  .intro-tagline{font-size:20px;font-weight:500;line-height:1.5;color:var(--g300);margin-bottom:16px;letter-spacing:-0.02em;}
+  .intro-sub{font-size:14px;color:var(--g600);line-height:1.7;margin-bottom:40px;}
+  .intro-btn{padding:14px 36px;border-radius:8px;border:none;background:var(--white);color:var(--black);font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:all .15s;letter-spacing:-0.02em;}
+  .intro-btn:hover{transform:scale(1.03);box-shadow:0 0 30px rgba(255,255,255,0.15);}
+  .intro-hint{margin-top:20px;font-size:11px;color:var(--g700);}
+
+  /* NARRATION BAR */
+  .narration{border-bottom:1px solid var(--g900);padding:14px 32px;font-size:14px;color:var(--g400);min-height:48px;display:flex;align-items:center;gap:10px;transition:all .3s;}
+  .narration.active{color:var(--white);}
+  .narr-icon{font-size:18px;flex-shrink:0;}
+  .narr-text{letter-spacing:-0.01em;line-height:1.4;}
+
+  /* HEADER */
+  .header{border-bottom:1px solid var(--g900);padding:12px 32px;display:flex;align-items:center;justify-content:space-between;}
+  .logo{display:flex;align-items:center;gap:10px;font-family:'IBM Plex Mono',monospace;}
+  .logo-mark{width:26px;height:26px;background:var(--white);border-radius:5px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:var(--black);}
+  .logo-text{font-size:14px;font-weight:600;letter-spacing:-0.03em;}
+  .logo-text span{color:var(--g600);font-weight:400;}
+  .header-right{display:flex;align-items:center;gap:14px;}
+  .status{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--g600);font-family:'IBM Plex Mono',monospace;}
+  .dot{width:5px;height:5px;border-radius:50%;}
+  .dot.on{background:var(--green);box-shadow:0 0 6px rgba(34,197,94,.5);}
+  .dot.off{background:var(--red);}
+  .run-btn{padding:6px 16px;border-radius:5px;border:1px solid var(--g800);background:transparent;color:var(--white);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;cursor:pointer;transition:all .15s;}
+  .run-btn:hover{background:var(--white);color:var(--black);}
+  .run-btn.running{color:var(--g600);cursor:default;}
+
+  /* MAIN */
+  .main{display:grid;grid-template-columns:1fr 220px 1fr;gap:1px;background:var(--g900);height:calc(100vh - 188px);}
+  .panel{background:var(--black);display:flex;flex-direction:column;overflow:hidden;}
+  .panel-header{padding:12px 18px;border-bottom:1px solid var(--g900);display:flex;align-items:center;justify-content:space-between;}
+  .panel-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--g500);font-family:'IBM Plex Mono',monospace;}
+  .panel-count{font-size:10px;color:var(--g700);font-family:'IBM Plex Mono',monospace;}
+  .panel-body{flex:1;overflow-y:auto;padding:10px 14px;}
+  .panel-body::-webkit-scrollbar{width:3px;}
+  .panel-body::-webkit-scrollbar-thumb{background:var(--g900);border-radius:3px;}
+
+  /* EVENTS — human-readable labels */
+  .ev{padding:9px 11px;border-radius:4px;margin-bottom:5px;border-left:2px solid var(--g800);background:var(--g1100);animation:fadeIn .25s ease;font-size:12px;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+  .ev.discovery{border-left-color:var(--g500);} .ev.request{border-left-color:var(--white);}
+  .ev.challenge{border-left-color:var(--amber);} .ev.payment,.ev.session_open,.ev.session_voucher{border-left-color:var(--g400);}
+  .ev.receipt,.ev.response,.ev.stream_end,.ev.session_close{border-left-color:var(--green);}
+  .ev-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;}
+  .ev-label{font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace;}
+  .ev-label.discovery{color:var(--g500);} .ev-label.request{color:var(--white);}
+  .ev-label.challenge{color:var(--amber);} .ev-label.payment,.ev-label.session_open,.ev-label.session_voucher{color:var(--g300);}
+  .ev-label.receipt,.ev-label.response,.ev-label.stream_end,.ev-label.session_close{color:var(--green);}
+  .ev-time{font-size:9px;color:var(--g700);font-family:'IBM Plex Mono',monospace;}
+  .ev-detail{color:var(--g500);line-height:1.5;}
+  .ev-detail a{color:var(--g400);text-decoration:none;border-bottom:1px solid var(--g800);}
+  .ev-detail a:hover{color:var(--white);}
+  .ev-timing{color:var(--green);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;margin-left:3px;}
+
+  /* Stream viz */
+  .stream-viz{padding:10px 12px;border-radius:4px;background:var(--g1100);border-left:2px solid var(--g600);margin-bottom:5px;}
+  .stream-viz-hd{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--g600);margin-bottom:4px;font-weight:600;font-family:'IBM Plex Mono',monospace;}
+  .stream-viz-text{font-size:12px;color:var(--g300);line-height:1.6;}
+  .cursor{display:inline-block;width:1px;height:13px;background:var(--white);animation:blink .5s step-end infinite;vertical-align:text-bottom;margin-left:1px;}
+  @keyframes blink{50%{opacity:0}}
+
+  /* Flow */
+  .flow-steps{display:flex;flex-direction:column;gap:3px;padding:4px 0;}
+  .flow-step{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:4px;transition:all .2s;opacity:.2;}
+  .flow-step.active{opacity:1;background:var(--g1100);}
+  .flow-step.completed{opacity:.6;}
+  .flow-num{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;flex-shrink:0;border:1px solid var(--g800);color:var(--g700);font-family:'IBM Plex Mono',monospace;transition:all .2s;}
+  .flow-step.active .flow-num{border-color:var(--white);background:var(--white);color:var(--black);}
+  .flow-step.completed .flow-num{border-color:var(--green);color:var(--green);}
+  .flow-lbl{font-size:11px;font-weight:500;color:var(--g500);letter-spacing:-0.02em;}
+  .flow-step.active .flow-lbl{color:var(--white);}
+  .flow-desc{font-size:9px;color:var(--g700);margin-top:1px;}
+  .flow-arrow{text-align:center;color:var(--g800);font-size:9px;line-height:1;opacity:.4;}
+  .flow-arrow.active{opacity:1;color:var(--g500);}
+  .tx-counter{margin-top:auto;padding:16px;text-align:center;border-top:1px solid var(--g900);}
+  .tx-num{font-size:44px;font-weight:700;color:var(--white);line-height:1;letter-spacing:-0.04em;font-family:'IBM Plex Mono',monospace;}
+  .tx-lbl{font-size:9px;color:var(--g600);text-transform:uppercase;letter-spacing:.12em;margin-top:4px;font-family:'IBM Plex Mono',monospace;}
+  .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--g700);text-align:center;gap:4px;font-size:11px;}
+
+  /* SUMMARY OVERLAY */
+  #summary{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:90;display:none;align-items:center;justify-content:center;}
+  #summary.show{display:flex;}
+  .summary-card{max-width:480px;padding:48px 40px;text-align:center;}
+  .summary-title{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:600;margin-bottom:28px;letter-spacing:-0.03em;}
+  .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px 32px;margin-bottom:32px;text-align:left;}
+  .summary-stat-val{font-size:24px;font-weight:700;font-family:'IBM Plex Mono',monospace;letter-spacing:-0.03em;}
+  .summary-stat-val.green{color:var(--green);}
+  .summary-stat-lbl{font-size:10px;color:var(--g600);text-transform:uppercase;letter-spacing:.08em;margin-top:2px;}
+  .summary-compare{border-top:1px solid var(--g900);padding-top:24px;margin-bottom:28px;}
+  .summary-compare-title{font-size:11px;color:var(--g600);text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px;font-family:'IBM Plex Mono',monospace;}
+  .compare-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--g900);font-size:12px;}
+  .compare-old{color:var(--g600);text-decoration:line-through;}
+  .compare-new{color:var(--green);font-weight:500;}
+  .summary-close{padding:10px 28px;border-radius:6px;border:1px solid var(--g800);background:transparent;color:var(--white);font-family:'IBM Plex Mono',monospace;font-size:12px;cursor:pointer;transition:all .15s;}
+  .summary-close:hover{background:var(--white);color:var(--black);}
+
+  /* BOTTOM */
+  .bottom{border-top:1px solid var(--g900);padding:10px 32px;display:flex;align-items:center;justify-content:space-between;}
+  .stats{display:flex;align-items:center;gap:24px;}
+  .stat-val{font-size:12px;font-weight:600;font-family:'IBM Plex Mono',monospace;letter-spacing:-0.02em;transition:all .2s;}
+  .stat-val.bump{color:var(--green);}
+  .stat-lbl{font-size:8px;color:var(--g600);text-transform:uppercase;letter-spacing:.1em;font-family:'IBM Plex Mono',monospace;}
+  .stat-sep{width:1px;height:20px;background:var(--g900);}
+</style>
+</head>
+<body>
+
+<!-- INTRO OVERLAY -->
+<div id="intro">
+  <div class="intro-content">
+    <div class="intro-logo">tempo <span>demo</span></div>
+    <div class="intro-tagline">What if AI agents could buy services from each other — with real money?</div>
+    <div class="intro-sub">
+      Meet <b>DailyBrief Bot</b> — an AI that writes a daily newsletter.<br>
+      It needs headlines analyzed and articles written, so it hires <b>ContentAI</b> — a paid writing service.<br><br>
+      No accounts. No API keys. No subscriptions.<br>
+      The bot pays 1¢ per headline analysis. It pays a tenth of a cent per word for articles.<br><br>
+      Real stablecoins. Real blockchain. Settled in ~1 second.
+    </div>
+    <button class="intro-btn" onclick="startDemo()">Watch it happen →</button>
+    <div class="intro-hint">Uses Tempo testnet · pathUSD stablecoin · Machine Payments Protocol</div>
+  </div>
+</div>
+
+<!-- SUMMARY OVERLAY -->
+<div id="summary">
+  <div class="summary-card">
+    <div class="summary-title">What just happened</div>
+    <div class="summary-grid">
+      <div><div id="sum-tx" class="summary-stat-val">0</div><div class="summary-stat-lbl">On-chain payments</div></div>
+      <div><div id="sum-rev" class="summary-stat-val green">$0.00</div><div class="summary-stat-lbl">Total moved</div></div>
+      <div><div id="sum-lat" class="summary-stat-val">0ms</div><div class="summary-stat-lbl">Avg settlement</div></div>
+      <div><div id="sum-words" class="summary-stat-val">0</div><div class="summary-stat-lbl">Words streamed</div></div>
+    </div>
+    <div id="sum-article-wrap" class="summary-compare" style="display:none">
+      <div class="summary-compare-title">What the money bought</div>
+      <div id="sum-article" style="font-size:12px;color:var(--g400);line-height:1.7;text-align:left;font-style:italic;"></div>
+    </div>
+    <div class="summary-compare">
+      <div class="summary-compare-title">Old way vs Tempo</div>
+      <div class="compare-row"><span class="compare-old">Sign up for an account</span><span class="compare-new">No account needed</span></div>
+      <div class="compare-row"><span class="compare-old">Enter credit card</span><span class="compare-new">Agent has a wallet</span></div>
+      <div class="compare-row"><span class="compare-old">Pay $20/month subscription</span><span class="compare-new">Pay $0.01 per use</span></div>
+      <div class="compare-row"><span class="compare-old">Wait days for settlement</span><span class="compare-new">Settled in ~1 second</span></div>
+      <div class="compare-row"><span class="compare-old">Manual invoice reconciliation</span><span class="compare-new">On-chain receipt, instant</span></div>
+    </div>
+    <button class="summary-close" onclick="closeSummary()">Close</button>
+  </div>
+</div>
+
+<!-- NARRATION BAR -->
+<div id="narr" class="narration">
+  <span class="narr-icon">⏳</span>
+  <span id="narr-text" class="narr-text">Waiting to start...</span>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">
+    <div class="logo-mark">T</div>
+    <div class="logo-text">tempo <span>agent payments</span></div>
+  </div>
+  <div class="header-right">
+    <button id="run-btn" class="run-btn" onclick="triggerRun()">Run again →</button>
+    <div class="status"><div id="dot" class="dot off"></div><span id="stxt" class="mono" style="font-size:10px">connecting</span></div>
+  </div>
+</div>
+
+<!-- THREE COLUMNS -->
+<div class="main">
+  <div class="panel">
+    <div class="panel-header"><div class="panel-label">ContentAI (seller)</div><div id="sc" class="panel-count">0</div></div>
+    <div id="sl" class="panel-body"><div class="empty">Waiting for customers...</div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-header"><div class="panel-label">Payment Flow</div></div>
+    <div class="panel-body">
+      <div class="flow-steps">
+        <div id="s1" class="flow-step"><div class="flow-num">1</div><div><div class="flow-lbl">Discover</div><div class="flow-desc">What's available?</div></div></div>
+        <div class="flow-arrow" id="a1">↓</div>
+        <div id="s2" class="flow-step"><div class="flow-num">2</div><div><div class="flow-lbl">Request</div><div class="flow-desc">Analyze this headline</div></div></div>
+        <div class="flow-arrow" id="a2">↓</div>
+        <div id="s3" class="flow-step"><div class="flow-num">3</div><div><div class="flow-lbl">Price check</div><div class="flow-desc">That'll be a penny</div></div></div>
+        <div class="flow-arrow" id="a3">↓</div>
+        <div id="s4" class="flow-step"><div class="flow-num">4</div><div><div class="flow-lbl">Pay</div><div class="flow-desc">Paying with stablecoins...</div></div></div>
+        <div class="flow-arrow" id="a4">↓</div>
+        <div id="s5" class="flow-step"><div class="flow-num">5</div><div><div class="flow-lbl">Confirm</div><div class="flow-desc">Money received ✓ ✓</div></div></div>
+        <div class="flow-arrow" id="a5">↓</div>
+        <div id="s6" class="flow-step"><div class="flow-num">6</div><div><div class="flow-lbl">Deliver</div><div class="flow-desc">Here's your result</div></div></div>
+      </div>
+      <div class="tx-counter"><div id="txn" class="tx-num">0</div><div class="tx-lbl">payments</div></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-header"><div class="panel-label">DailyBrief Bot (buyer)</div><div id="cc" class="panel-count">0</div></div>
+    <div id="cl" class="panel-body"><div class="empty">Ready to buy content</div></div>
+  </div>
+</div>
+
+<!-- BOTTOM -->
+<div class="bottom">
+  <div class="stats">
+    <div><div id="v-req" class="stat-val">0</div><div class="stat-lbl">Payments</div></div>
+    <div class="stat-sep"></div>
+    <div><div id="v-rev" class="stat-val">$0.0000</div><div class="stat-lbl">Moved</div></div>
+    <div class="stat-sep"></div>
+    <div><div id="v-lat" class="stat-val">—</div><div class="stat-lbl">Avg Speed</div></div>
+    <div class="stat-sep"></div>
+    <div><div class="stat-val">Tempo Testnet</div><div class="stat-lbl">Chain 42431</div></div>
+  </div>
+  <div class="stats">
+    <div><div id="v-sb" class="stat-val">—</div><div class="stat-lbl">ContentAI balance</div></div>
+    <div class="stat-sep"></div>
+    <div><div id="v-cb" class="stat-val">—</div><div class="stat-lbl">DailyBrief balance</div></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  let se=0,ce=0,tx=0,rev=0,ws,ft,sviz=null,sw=[],totalWords=0,requestNum=0;
+  const sl=document.getElementById('sl'),cl=document.getElementById('cl');
+
+  // NARRATION — only key moments, holds for 2.5s minimum
+  let narrLock=0;
+  function narrate(icon,text){
+    const now=Date.now();
+    if(now<narrLock)return; // skip if still showing previous
+    narrLock=now+2500;
+    const bar=document.getElementById('narr');
+    const txt=document.getElementById('narr-text');
+    bar.classList.add('active');
+    document.querySelector('.narr-icon').textContent=icon;
+    txt.textContent=text;
+  }
+  function narrForce(icon,text){narrLock=0;narrate(icon,text);}
+
+  // HUMAN-READABLE event labels
+  function humanLabel(t){
+    return{discovery:'browsing services',request:'placing request',challenge:'price: pay to proceed',payment:'sending payment',
+      receipt:'payment confirmed ✓',response:'result delivered',stream_word:'streaming...',stream_data:'',
+      stream_end:'stream complete ✓',session_open:'opening tab',session_voucher:'writing article — paying per word',session_close:'tab settled ✓',error:'error'}[t]||t;
+  }
+
+  function clr(p){const e=p.querySelector('.empty');if(e)e.remove();}
+
+  function add(p,e){
+    clr(p);const d=document.createElement('div');d.className='ev '+e.type;
+    const t=e.timestamp?new Date(e.timestamp).toLocaleTimeString():'';
+    d.innerHTML='<div class="ev-top"><span class="ev-label '+e.type+'">'+humanLabel(e.type)+'</span><span class="ev-time">'+t+'</span></div><div class="ev-detail">'+fmtDetail(e)+'</div>';
+    p.prepend(d);
+  }
+
+  function fmtDetail(e){
+    const d=e.data||{};
+    let tm=d.elapsed?'<span class="ev-timing">'+d.elapsed+'</span>':'';
+    let ex=d.explorerUrl&&d.txHash?'<br><a href="'+d.explorerUrl+'" target="_blank" class="mono">'+d.txHash.slice(0,10)+'…'+d.txHash.slice(-4)+' ↗</a>':'';
+    switch(e.type){
+      case'discovery':return d.services?('Found '+d.services.length+' paid services'):(d.found+' services → '+(d.endpoints||[]).join(', '));
+      case'request':return d.text?('"'+d.text+'…"'):(d.mode||d.action||'');
+      case'challenge':return(d.amount||d.rate||'')+' '+(d.currency||'')+' '+(d.status?'— '+d.status:'')+tm;
+      case'payment':return(d.status||'Paid '+d.amount)+tm+ex;
+      case'receipt':return(d.endpoint||'')+' — '+(d.amount||d.mode||'')+(d.amount?' pathUSD':'')+tm+ex;
+      case'response':return d.signal?(d.signal+' (confidence: '+d.confidence+')'+tm):d.sentiment?(d.sentiment+' ('+d.score+')'+tm):(d.result?JSON.stringify(d.result).slice(0,60)+tm:'done'+tm);
+      case'stream_data':return'';
+      case'stream_word':return d.progress+'/'+d.total+' words streamed';
+      case'stream_end':totalWords+=Number(d.words||0);return d.words+' words · cost '+d.cost+tm;
+      case'session_open':return'Deposited '+d.deposit+' into payment channel'+ex;
+      case'session_voucher':return'Word '+d.words+' → cumulative '+d.amount+' pathUSD';
+      case'session_close':return'Settled '+d.totalCharged+' for '+d.words+' words'+ex;
+      default:return JSON.stringify(d).slice(0,80);
+    }
+  }
+
+  // Stream viz
+  function ensViz(){if(!sviz){clr(cl);sviz=document.createElement('div');sviz.className='stream-viz';sviz.innerHTML='<div class="stream-viz-hd">streaming — writing article — paying per word</div><div class="stream-viz-text" id="stxtv"><span class="cursor"></span></div>';cl.prepend(sviz);sw=[];}}
+  function addWord(w){ensViz();sw.push(w);articleText=sw.join(' ');const el=document.getElementById('stxtv');if(el)el.innerHTML=articleText+'<span class="cursor"></span>';}
+  function endViz(){if(sviz){const c=sviz.querySelector('.cursor');if(c)c.remove();}sviz=null;sw=[];}
+
+  // Flow
+  function resetFlow(){for(let i=1;i<=6;i++){const s=document.getElementById('s'+i);if(s)s.className='flow-step';}for(let i=1;i<=5;i++){const a=document.getElementById('a'+i);if(a)a.className='flow-arrow';}}
+  function actStep(n){for(let i=1;i<n;i++){const s=document.getElementById('s'+i);if(s)s.className='flow-step completed';const a=document.getElementById('a'+i);if(a)a.className='flow-arrow active';}const s=document.getElementById('s'+n);if(s)s.className='flow-step active';}
+  function animFlow(t){clearTimeout(ft);const m={discovery:1,request:2,challenge:3,payment:4,receipt:5,response:6,stream_end:6,session_close:6};const n=m[t];if(n){actStep(n);if(n===6)ft=setTimeout(resetFlow,2000);}}
+
+  function bump(id){const el=document.getElementById(id);if(!el)return;el.classList.add('bump');setTimeout(()=>el.classList.remove('bump'),300);}
+
+  function upd(){
+    document.getElementById('sc').textContent=se;document.getElementById('cc').textContent=ce;
+    document.getElementById('txn').textContent=tx;document.getElementById('v-req').textContent=tx;
+    document.getElementById('v-rev').textContent='$'+rev.toFixed(4);bump('v-req');bump('v-rev');
+  }
+
+  let lastAvg=0;
+  async function fetchS(){try{const r=await fetch('/api/stats');const d=await r.json();document.getElementById('v-sb').textContent=parseFloat(d.recipientBalance).toFixed(2);if(d.avgTiming>0){lastAvg=d.avgTiming;document.getElementById('v-lat').textContent=d.avgTiming+'ms';}}catch{}}
+
+  // Summary
+  let summaryShown=false;
+  let articleText='';
+  function showSummary(){
+    if(summaryShown)return;summaryShown=true;
+    document.getElementById('sum-tx').textContent=tx;
+    document.getElementById('sum-rev').textContent='$'+rev.toFixed(4);
+    document.getElementById('sum-lat').textContent=(lastAvg||'~1200')+'ms';
+    document.getElementById('sum-words').textContent=totalWords;
+    if(articleText){
+      document.getElementById('sum-article').textContent='"'+articleText+'"';
+      document.getElementById('sum-article-wrap').style.display='';
+    }
+    setTimeout(()=>{document.getElementById('summary').classList.add('show');},2000);
+  }
+
+  function handle(e){
+    if(e.type==='stream_data'){addWord(String(e.data?.word||''));return;}
+
+    // Narrate only KEY moments — holds 2.5s each
+    if(e.type==='discovery'&&e.source==='server') narrForce('🔍','DailyBrief Bot is browsing ContentAI\'s menu — headline analysis and article writing.');
+    else if(e.type==='challenge'&&e.source==='server'){
+      requestNum++;
+      if(requestNum===1) narrate('📰','The bot wants a headline analyzed. ContentAI says: "1 cent." The bot pays instantly.');
+      else if(requestNum===3) narrate('💸','Another headline, another penny. No invoices, no accounts — just pay and get.');
+      else if(requestNum===5) narrate('📊','5 headlines analyzed, 5 cents spent. Each settled on-chain in about 1 second.');
+    }
+    else if(e.type==='receipt'&&e.source==='server'&&requestNum===1) narrate('✅','Payment confirmed! Real stablecoins moved on the Tempo blockchain in ~1 second.');
+    else if(e.type==='session_open') narrForce('📝','Now the bot is commissioning a full article — paying a tenth of a cent per word as it\'s written.');
+    else if(e.type==='stream_end'){narrForce('✨','Article complete! Every word was paid for individually. The tab is settled on-chain.');setTimeout(showSummary,2000);}
+
+    if(e.source==='server'){add(sl,e);se++;}else{add(cl,e);ce++;}
+    if(e.type==='stream_end')endViz();
+    animFlow(e.type);
+    if(e.type==='receipt'){tx++;const a=parseFloat(String(e.data?.amount)||'0');if(!isNaN(a))rev+=a;}
+    upd();fetchS();
+  }
+
+  // WebSocket
+  function connect(){
+    const p=location.protocol==='https:'?'wss:':'ws:';
+    ws=new WebSocket(p+'//'+location.host+'/ws');
+    ws.onopen=()=>{document.getElementById('dot').className='dot on';document.getElementById('stxt').textContent='live';};
+    ws.onclose=()=>{document.getElementById('dot').className='dot off';document.getElementById('stxt').textContent='offline';setTimeout(connect,2000);};
+    ws.onerror=()=>ws.close();
+    ws.onmessage=m=>{try{handle(JSON.parse(m.data));}catch{}};
+  }
+
+  // Start
+  window.startDemo=function(){
+    document.getElementById('intro').classList.add('hidden');
+    narrate('discovery','Starting the demo...');
+    fetch('/api/run-demo',{method:'POST'}).catch(()=>{});
+  };
+  window.triggerRun=function(){
+    summaryShown=false;document.getElementById('summary').classList.remove('show');
+    const b=document.getElementById('run-btn');b.className='run-btn running';b.textContent='Running...';
+    narrate('discovery','Starting a new round...');
+    fetch('/api/run-demo',{method:'POST'}).then(()=>{setTimeout(()=>{b.className='run-btn';b.textContent='Run again →';},30000);}).catch(()=>{b.className='run-btn';b.textContent='Run again →';});
+  };
+  window.closeSummary=function(){document.getElementById('summary').classList.remove('show');};
+
+  connect();fetchS();setInterval(fetchS,10000);
+})();
+</script>
+</body>
+</html>
